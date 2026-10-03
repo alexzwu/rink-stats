@@ -1,0 +1,9 @@
+{
+  "name": "Rink Stats",
+  "short_name": "Rink Stats",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b1622",
+  "theme_color": "#0b1622",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }]
+}

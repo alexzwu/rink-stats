@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rink Stats">
+<meta name="theme-color" content="#0b1622">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Rink Stats</title>
+<style>
+:root{
+  --bg:#0b1622; --panel:#14243a; --panel2:#1c3150; --line:#2a4266;
+  --text:#eef4fb; --dim:#8fa6c2; --accent:#4cc2ff; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffc857;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:16px}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  touch-action:manipulation;-webkit-user-select:none;user-select:none}
+button,input,select{font:inherit;color:inherit}
+input,select{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  width:100%;-webkit-user-select:text;user-select:text}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+button:active{filter:brightness(1.3)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:700}
+button.danger{color:var(--bad)}
+button.small{padding:6px 10px;border-radius:9px;font-size:14px}
+#app{max-width:720px;margin:0 auto;padding:12px 12px calc(24px + env(safe-area-inset-bottom))}
+h1{font-size:22px;margin:4px 0 12px}
+h2{font-size:15px;margin:22px 0 8px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.bar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.bar h1{margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.grow{flex:1;min-width:0}
+.dim{color:var(--dim)} .sm{font-size:13px}
+.menu{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.menu button{padding:18px 10px;font-weight:600}
+.menu .primary{grid-column:1/-1;font-size:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;
+  display:flex;align-items:center;gap:10px}
+.tag{font-size:11px;padding:2px 7px;border-radius:99px;background:var(--panel2);color:var(--dim)}
+.tag.live{background:var(--warn);color:#2b1d00;font-weight:700}
+label.f{display:block;margin-bottom:10px}
+label.f span{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
+.check{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.check input{width:22px;height:22px;flex:none}
+
+/* live screen */
+.score{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.periods{display:flex;gap:6px;margin-bottom:8px}
+.periods button{flex:1;padding:8px 0;font-weight:700}
+.periods button.on{background:var(--accent);color:#04121f;border-color:var(--accent)}
+.periods .goalie{flex:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.last{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:10px;padding:6px 6px 6px 12px;
+  margin-bottom:10px;min-height:46px}
+.last.flash{animation:flash .5s}
+@keyframes flash{from{background:var(--good);color:#04121f}}
+.players{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.players button{padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;min-height:68px;justify-content:center}
+.players .n{font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.players .nm{font-size:11px;color:var(--dim);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}
+.players button.g{border-style:dashed}
+.players button.on,.events button.on{background:var(--warn);border-color:var(--warn);color:#2b1d00}
+.players button.on .nm{color:#2b1d00}
+.events{position:sticky;bottom:0;margin:12px -12px 0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,var(--bg) 14px);display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.events button{min-height:56px;font-weight:700;font-size:15px;padding:6px 4px}
+.events button.goal{background:#12402f;border-color:var(--good)}
+.events button.gl{background:#3a2440;border-color:#b98be0}
+
+/* tables */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--dim);font-size:12px}
+th:nth-child(-n+2),td:nth-child(-n+2){text-align:left}
+tr.total td{font-weight:700;border-top:2px solid var(--line)}
+
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:10}
+#modal.show{display:flex}
+#modal .sheet{background:var(--bg);border:1px solid var(--line);border-radius:18px 18px 0 0;width:100%;max-width:720px;
+  max-height:88vh;overflow-y:auto;padding:16px 14px calc(18px + env(safe-area-inset-bottom))}
+.logrow{display:flex;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line)}
+
+@media print{
+  :root{--bg:#fff;--panel:#fff;--panel2:#fff;--line:#bbb;--text:#000;--dim:#444}
+  .noprint{display:none!important}
+  .tw{overflow:visible}
+  table{font-size:11px} th,td{padding:4px 6px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+<script>
+'use strict';
+const KEY = 'hockeystats.v1';
+const DEFAULT_EVENTS = [
+  {id:'goal',  label:'Goal',           short:'G',   on:true,  builtin:true},
+  {id:'shot',  label:'Shot on goal',   short:'SOG', on:true,  builtin:true},
+  {id:'miss',  label:'Missed shot',    short:'MS',  on:true,  builtin:true},
+  {id:'passc', label:'Pass completed', short:'PC',  on:true,  builtin:true},
+  {id:'passm', label:'Pass missed',    short:'PM',  on:true,  builtin:true},
+  {id:'take',  label:'Takeaway',       short:'TK',  on:false, builtin:true},
+  {id:'give',  label:'Giveaway',       short:'GV',  on:false, builtin:true},
+  {id:'block', label:'Blocked shot',   short:'BLK', on:false, builtin:true},
+  {id:'pen',   label:'Penalty',        short:'PEN', on:false, builtin:true},
+  {id:'fow',   label:'Faceoff won',    short:'FOW', on:false, builtin:true},
+  {id:'fol',   label:'Faceoff lost',   short:'FOL', on:false, builtin:true},
+  {id:'save',  label:'Save',           short:'SV',  on:true,  builtin:true, goalie:true},
+  {id:'ga',    label:'Goal against',   short:'GA',  on:true,  builtin:true, goalie:true},
+];
+const PERIODS = ['1','2','3','OT'];
+const UNKNOWN = '?';
+
+let S = load();
+let view = {name:'home'};
+let sel = {pid:null, ev:null};
+let flash = false;
+
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(KEY)); if(s && s.teams && s.games) return s; }catch(e){}
+  return {teams:[], games:[], cur:null};
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $app = document.getElementById('app');
+const today = () => new Date().toLocaleDateString('en-CA');
+const team = () => S.teams.find(t => t.id === S.cur);
+const game = id => S.games.find(g => g.id === id);
+const teamGames = () => S.games.filter(g => g.teamId === S.cur).sort((a,b) => b.date.localeCompare(a.date) || b.created - a.created);
+const sortedPlayers = t => [...t.players].sort((a,b) => (parseInt(a.num)||0) - (parseInt(b.num)||0));
+const evDef = id => team().events.find(e => e.id === id) || {id, label:'(removed event)', short:'?'};
+function pname(pid, short){
+  if(pid === UNKNOWN) return short ? '?' : 'Unknown player';
+  const p = team().players.find(p => p.id === pid);
+  if(!p) return '(removed)';
+  return short ? '#' + p.num : '#' + p.num + ' ' + p.name;
+}
+const score = g => ({us: g.log.filter(e => e.ev === 'goal').length, them: g.log.filter(e => e.ev === 'ga').length});
+const pct = (a,b) => b ? Math.round(100*a/b) + '%' : '–';
+
+function go(name, arg){ view = {name, arg}; sel = {pid:null, ev:null}; closeModal(); render(); window.scrollTo(0,0); }
+function render(){
+  const v = {home, roster, events:eventsView, newgame, live, summary, season, backup}[view.name];
+  $app.innerHTML = v(view.arg);
+}
+function openModal(html){ document.getElementById('sheet').innerHTML = html; document.getElementById('modal').classList.add('show'); }
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+const back = (title, to='home', arg) =>
+  `<div class="bar noprint"><button class="small" onclick="go('${to}'${arg ? `,'${arg}'` : ''})">‹ Back</button><h1>${esc(title)}</h1></div>`;
+
+/* ---------- Home ---------- */
+function home(){
+  const t = team();
+  if(!t) return `<h1>🏒 Rink Stats</h1>
+    <p class="dim">Start by creating your team.</p>
+    <label class="f"><span>Team name</span><input id="tn" placeholder="e.g. U11 Wildcats"></label>
+    <button class="primary" onclick="addTeam(document.getElementById('tn').value)">Create team</button>
+    <h2>Have a backup?</h2><button onclick="go('backup')">Restore from backup</button>`;
+  const games = teamGames();
+  return `<div class="bar"><h1>🏒 Rink Stats</h1></div>
+    <div class="row"><select class="grow" onchange="pickTeam(this.value)">
+      ${S.teams.map(x => `<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}
+      <option value="+">+ New team…</option></select></div>
+    <div class="menu">
+      <button class="primary" onclick="go('newgame')">New game</button>
+      <button onclick="go('roster')">Roster (${t.players.length})</button>
+      <button onclick="go('events')">Events</button>
+      <button onclick="go('season')">Season stats</button>
+      <button onclick="go('backup')">Backup</button>
+    </div>
+    <h2>Games</h2>
+    ${games.length ? games.map(g => { const s = score(g); return `
+      <div class="card" onclick="go('${g.done?'summary':'live'}','${g.id}')">
+        <div class="grow"><b>${g.home?'vs':'@'} ${esc(g.opp)}</b><div class="dim sm">${esc(g.date)}</div></div>
+        ${g.done ? '' : '<span class="tag live">IN PROGRESS</span>'}
+        <div class="score" style="font-size:20px">${s.us}–${s.them}</div></div>`; }).join('')
+      : '<p class="dim">No games yet.</p>'}`;
+}
+function addTeam(name){
+  name = (name||'').trim(); if(!name) return;
+  const t = {id:uid(), name, players:[], events:JSON.parse(JSON.stringify(DEFAULT_EVENTS))};
+  S.teams.push(t); S.cur = t.id; save(); go('roster');
+}
+function pickTeam(v){
+  if(v === '+'){ const n = prompt('Team name'); if(n) return addTeam(n); return render(); }
+  S.cur = v; save(); render();
+}
+
+/* ---------- Roster ---------- */
+function roster(){
+  const t = team();
+  return back('Roster') + `
+    <label class="f"><span>Team name</span><input value="${esc(t.name)}" onchange="team().name=this.value.trim()||team().name;save()"></label>
+    <h2>Players</h2>
+    ${sortedPlayers(t).map(p => `<div class="row">
+      <input style="width:64px;text-align:center" inputmode="numeric" value="${esc(p.num)}" onchange="updPlayer('${p.id}','num',this.value)">
+      <input class="grow" value="${esc(p.name)}" onchange="updPlayer('${p.id}','name',this.value)">
+      <select style="width:74px" onchange="updPlayer('${p.id}','pos',this.value)">
+        ${['F','D','G'].map(x => `<option ${p.pos===x?'selected':''}>${x}</option>`).join('')}</select>
+      <button class="small danger" onclick="delPlayer('${p.id}')">✕</button></div>`).join('')}
+    <h2>Add player</h2>
+    <div class="row">
+      <input id="pn" style="width:64px;text-align:center" inputmode="numeric" placeholder="#">
+      <input id="pm" class="grow" placeholder="Name">
+      <select id="pp" style="width:74px"><option>F</option><option>D</option><option>G</option></select>
+    </div>
+    <button class="primary" onclick="addPlayer()">Add player</button>
+    <p class="dim sm">F = forward, D = defence, G = goalie.</p>
+    <h2>Team</h2>
+    <button class="danger" onclick="delTeam()">Delete this team and its games</button>`;
+}
+function addPlayer(){
+  const num = document.getElementById('pn').value.trim(), name = document.getElementById('pm').value.trim();
+  if(!num && !name) return;
+  team().players.push({id:uid(), num, name, pos:document.getElementById('pp').value});
+  save(); render(); document.getElementById('pn').focus();
+}
+function updPlayer(id, k, v){ team().players.find(p => p.id === id)[k] = v.trim(); save(); if(k === 'num') render(); }
+function delPlayer(id){
+  const used = S.games.some(g => g.log.some(e => e.pid === id || e.a1 === id || e.a2 === id));
+  if(!confirm(used ? 'This player has recorded stats. Removing them drops those stats from reports. Remove?' : 'Remove this player?')) return;
+  const t = team(); t.players = t.players.filter(p => p.id !== id); save(); render();
+}
+function delTeam(){
+  if(!confirm(`Delete "${team().name}" and all its games? This cannot be undone.`)) return;
+  S.games = S.games.filter(g => g.teamId !== S.cur);
+  S.teams = S.teams.filter(t => t.id !== S.cur);
+  S.cur = S.teams[0] ? S.teams[0].id : null; save(); go('home');
+}
+
+/* ---------- Events ---------- */
+function eventsView(){
+  const t = team();
+  return back('Events') + `
+    <p class="dim sm">Tick the events this team tracks. Only ticked events show as buttons during a game.
+    A goal automatically counts as a shot on goal. Save and Goal against go to the goalie in net.</p>
+    ${t.events.map(e => `<div class="row">
+      <input type="checkbox" style="width:24px;height:24px;flex:none" ${e.on?'checked':''} onchange="updEvent('${e.id}','on',this.checked)">
+      <input class="grow" value="${esc(e.label)}" onchange="updEvent('${e.id}','label',this.value)">
+      <input style="width:72px;text-align:center" value="${esc(e.short)}" onchange="updEvent('${e.id}','short',this.value)">
+      ${e.builtin ? '<span style="width:38px"></span>' : `<button class="small danger" onclick="delEvent('${e.id}')">✕</button>`}
+    </div>`).join('')}
+    <h2>Add your own event</h2>
+    <div class="row"><input id="en" class="grow" placeholder="Name, e.g. Zone entry">
+      <input id="es" style="width:72px;text-align:center" placeholder="Abbr"></div>
+    <button class="primary" onclick="addEvent()">Add event</button>`;
+}
+function updEvent(id, k, v){
+  const e = team().events.find(e => e.id === id);
+  if(k === 'on') e.on = v; else if(v.trim()) e[k] = v.trim();
+  save();
+}
+function addEvent(){
+  const label = document.getElementById('en').value.trim(); if(!label) return;
+  const short = document.getElementById('es').value.trim() || label.slice(0,3).toUpperCase();
+  const evs = team().events, at = evs.findIndex(e => e.goalie);
+  evs.splice(at < 0 ? evs.length : at, 0, {id:'c'+uid(), label, short, on:true});
+  save(); render();
+}
+function delEvent(id){
+  const used = S.games.some(g => g.teamId === S.cur && g.log.some(e => e.ev === id));
+  if(!confirm(used ? 'This event has recorded stats which will be deleted too. Delete?' : 'Delete this event?')) return;
+  const t = team(); t.events = t.events.filter(e => e.id !== id);
+  S.games.forEach(g => { if(g.teamId === S.cur) g.log = g.log.filter(e => e.ev !== id); });
+  save(); render();
+}
+
+/* ---------- New game ---------- */
+function newgame(){
+  const t = team(), ps = sortedPlayers(t);
+  if(!ps.length) return back('New game') + `<p class="dim">Add players to the roster first.</p><button class="primary" onclick="go('roster')">Open roster</button>`;
+  const goalies = ps.filter(p => p.pos === 'G');
+  return back('New game') + `
+    <label class="f"><span>Opponent</span><input id="go" placeholder="Opponent team"></label>
+    <div class="row">
+      <label class="f grow"><span>Date</span><input id="gd" type="date" value="${today()}"></label>
+      <label class="f grow"><span>Where</span><select id="gh"><option value="1">Home</option><option value="0">Away</option></select></label>
+    </div>
+    <label class="f"><span>Starting goalie</span><select id="gg"><option value="">— none —</option>
+      ${(goalies.length ? goalies : ps).map(p => `<option value="${p.id}">${esc(pname(p.id))}</option>`).join('')}</select></label>
+    <h2>Who is playing? (untick absent players)</h2>
+    ${ps.map(p => `<label class="check"><input type="checkbox" class="att" value="${p.id}" checked>
+      <b style="width:42px">#${esc(p.num)}</b><span class="grow">${esc(p.name)}</span><span class="tag">${p.pos}</span></label>`).join('')}
+    <p></p><button class="primary" style="width:100%" onclick="startGame()">Start game</button>`;
+}
+function startGame(){
+  const g = {id:uid(), teamId:S.cur, created:Date.now(), opp:document.getElementById('go').value.trim() || 'Opponent',
+    date:document.getElementById('gd').value || today(), home:document.getElementById('gh').value === '1',
+    goalieId:document.getElementById('gg').value || null, period:'1', done:false, log:[],
+    absent:[...document.querySelectorAll('.att')].filter(c => !c.checked).map(c => c.value)};
+  S.games.push(g); save(); go('live', g.id);
+}
+
+/* ---------- Live tracking ---------- */
+function live(id){
+  const g = game(id), t = team(), s = score(g);
+  const ps = sortedPlayers(t).filter(p => !g.absent.includes(p.id));
+  const last = g.log[g.log.length-1];
+  const wasFlash = flash; flash = false;
+  return `<div class="bar">
+      <button class="small" onclick="go('home')">‹</button>
+      <h1 style="font-size:17px">${g.home?'vs':'@'} ${esc(g.opp)}</h1>
+      <div class="score">${s.us} – ${s.them}</div>
+      <button class="small primary" onclick="endGame()">End</button></div>
+    <div class="periods">
+      ${PERIODS.map(p => `<button class="${g.period===p?'on':''}" onclick="setPeriod('${p}')">${p==='OT'?'OT':'P'+p}</button>`).join('')}
+      <button class="goalie" onclick="pickGoalie()">🥅 ${g.goalieId ? esc(pname(g.goalieId,true)) : 'Goalie'}</button></div>
+    <div class="last ${wasFlash?'flash':''}">
+      <div class="grow sm">${last ? `<b>${esc(pname(last.pid))}</b> · ${esc(evDef(last.ev).label)}${assistText(last)}`
+        : '<span class="dim">Tap a player then an event, or the event first.</span>'}</div>
+      <button class="small" onclick="undo()" ${last?'':'disabled'}>Undo</button>
+      <button class="small" onclick="showLog()">Log (${g.log.length})</button></div>
+    <div class="players">
+      ${ps.map(p => `<button class="${p.pos==='G'?'g':''} ${sel.pid===p.id?'on':''}" onclick="tapPlayer('${p.id}')">
+        <span class="n">${esc(p.num)}</span><span class="nm">${esc(p.name)}</span></button>`).join('')}
+      <button class="${sel.pid===UNKNOWN?'on':''}" onclick="tapPlayer('${UNKNOWN}')"><span class="n">?</span><span class="nm">Unknown</span></button>
+    </div>
+    <div class="events">
+      ${t.events.filter(e => e.on).map(e => `<button class="${e.id==='goal'?'goal':''} ${e.goalie?'gl':''} ${sel.ev===e.id?'on':''}"
+        onclick="tapEvent('${e.id}')">${esc(e.label)}</button>`).join('')}
+    </div>`;
+}
+const cur = () => game(view.arg);
+const assistText = e => e.a1 ? ` <span class="dim">(A: ${esc(pname(e.a1,true))}${e.a2 ? ', ' + esc(pname(e.a2,true)) : ''})</span>` : '';
+function setPeriod(p){ cur().period = p; save(); render(); }
+function tapPlayer(pid){ sel.pid = sel.pid === pid ? null : pid; tryRecord(); }
+function tapEvent(ev){
+  if(evDef(ev).goalie){
+    if(!cur().goalieId) return pickGoalie(ev);
+    return record(cur().goalieId, ev);
+  }
+  sel.ev = sel.ev === ev ? null : ev; tryRecord();
+}
+function tryRecord(){ if(sel.pid && sel.ev) record(sel.pid, sel.ev); else render(); }
+function record(pid, ev){
+  const g = cur(), e = {id:uid(), t:Date.now(), period:g.period, pid, ev};
+  g.log.push(e); sel = {pid:null, ev:null}; flash = true; save(); render();
+  if(ev === 'goal') askAssists(e.id);
+}
+function undo(){ const g = cur(); g.log.pop(); save(); render(); }
+function endGame(){ if(!confirm('End the game and view the summary?')) return; const g = cur(); g.done = true; save(); go('summary', g.id); }
+
+function pickGoalie(thenEv){
+  const g = cur(), ps = sortedPlayers(team()).filter(p => !g.absent.includes(p.id));
+  ps.sort((a,b) => (b.pos==='G') - (a.pos==='G'));
+  openModal(`<h1>Who is in net?</h1><div class="players">
+    ${ps.map(p => `<button class="${g.goalieId===p.id?'on':''}" onclick="setGoalie('${p.id}','${thenEv||''}')">
+      <span class="n">${esc(p.num)}</span><span class="nm">${esc(p.name)} · ${p.pos}</span></button>`).join('')}</div>`);
+}
+function setGoalie(pid, thenEv){ cur().goalieId = pid; save(); closeModal(); if(thenEv) record(pid, thenEv); else render(); }
+
+function askAssists(eid){
+  const g = cur(), e = g.log.find(x => x.id === eid);
+  const ps = sortedPlayers(team()).filter(p => !g.absent.includes(p.id) && p.id !== e.pid);
+  const picked = [e.a1, e.a2].filter(Boolean);
+  openModal(`<h1>Goal by ${esc(pname(e.pid))} 🎉</h1><p class="dim">Tap up to two assists, first assist first.</p>
+    <div class="players">${ps.map(p => `<button class="${picked.includes(p.id)?'on':''}" onclick="toggleAssist('${eid}','${p.id}')">
+      <span class="n">${esc(p.num)}</span><span class="nm">${esc(p.name)}${picked.includes(p.id) ? ' · A' + (picked.indexOf(p.id)+1) : ''}</span></button>`).join('')}</div>
+    <p></p><button class="primary" style="width:100%" onclick="closeModal();render()">${picked.length ? 'Done' : 'No assist'}</button>`);
+}
+function toggleAssist(eid, pid){
+  const e = cur().log.find(x => x.id === eid);
+  let a = [e.a1, e.a2].filter(Boolean);
+  a = a.includes(pid) ? a.filter(x => x !== pid) : a.length < 2 ? [...a, pid] : a;
+  e.a1 = a[0] || null; e.a2 = a[1] || null; save(); askAssists(eid);
+}
+
+function showLog(){
+  const g = cur();
+  openModal(`<div class="bar"><h1>Event log</h1><button class="small" onclick="closeModal()">Close</button></div>
+    ${g.log.length ? [...g.log].reverse().map(e => `<div class="logrow" onclick="editEntry('${e.id}')">
+      <span class="tag">${e.period==='OT'?'OT':'P'+e.period}</span>
+      <div class="grow"><b>${esc(pname(e.pid))}</b> · ${esc(evDef(e.ev).label)}${assistText(e)}</div><span class="dim">Edit ›</span></div>`).join('')
+      : '<p class="dim">Nothing recorded yet.</p>'}`);
+}
+function editEntry(eid){
+  const g = cur(), t = team(), e = g.log.find(x => x.id === eid);
+  const ps = sortedPlayers(t).filter(p => !g.absent.includes(p.id) || p.id === e.pid);
+  openModal(`<div class="bar"><h1>Edit entry</h1><button class="small" onclick="showLog()">‹ Log</button></div>
+    <label class="f"><span>Player</span><select id="xp">
+      <option value="${UNKNOWN}" ${e.pid===UNKNOWN?'selected':''}>Unknown player</option>
+      ${ps.map(p => `<option value="${p.id}" ${e.pid===p.id?'selected':''}>${esc(pname(p.id))}</option>`).join('')}</select></label>
+    <label class="f"><span>Event</span><select id="xe">
+      ${t.events.filter(d => d.on || d.id === e.ev).map(d => `<option value="${d.id}" ${e.ev===d.id?'selected':''}>${esc(d.label)}</option>`).join('')}</select></label>
+    <label class="f"><span>Period</span><select id="xr">
+      ${PERIODS.map(p => `<option ${e.period===p?'selected':''}>${p}</option>`).join('')}</select></label>
+    <div class="row"><button class="primary grow" onclick="saveEntry('${eid}')">Save</button>
+      ${e.ev==='goal' ? `<button onclick="askAssists('${eid}')">Assists</button>` : ''}
+      <button class="danger" onclick="delEntry('${eid}')">Delete</button></div>`);
+}
+function saveEntry(eid){
+  const e = cur().log.find(x => x.id === eid);
+  e.pid = document.getElementById('xp').value; e.ev = document.getElementById('xe').value; e.period = document.getElementById('xr').value;
+  if(e.ev !== 'goal'){ e.a1 = e.a2 = null; }
+  if(e.a1 === e.pid) { e.a1 = e.a2; e.a2 = null; } if(e.a2 === e.pid) e.a2 = null;
+  save(); render(); showLog();
+}
+function delEntry(eid){ const g = cur(); g.log = g.log.filter(x => x.id !== eid); save(); render(); showLog(); }
+
+/* ---------- Stats ---------- */
+function counts(t, games){
+  const c = {}, gp = {}, tot = {};
+  const bump = (pid, k) => { (c[pid] = c[pid] || {})[k] = (c[pid][k] || 0) + 1; tot[k] = (tot[k] || 0) + 1; };
+  for(const g of games){
+    for(const p of t.players) if(!g.absent.includes(p.id)) gp[p.id] = (gp[p.id] || 0) + 1;
+    for(const e of g.log){ bump(e.pid, e.ev); if(e.a1) bump(e.a1, '_a'); if(e.a2) bump(e.a2, '_a'); }
+  }
+  const used = id => { const d = t.events.find(x => x.id === id); return !!((d && d.on) || tot[id]); };
+  return {c, gp, tot, used};
+}
+function skaterTable(t, games, opt = {}){
+  const {c, gp, tot, used} = counts(t, games);
+  const cols = [];  // [header, fn(n), isText]
+  if(used('goal')) cols.push(['G', n => n('goal')], ['A', n => n('_a')], ['PTS', n => n('goal') + n('_a')]);
+  if(used('shot') || used('goal')) cols.push(['SOG', n => n('shot') + n('goal')]);
+  for(const d of t.events){
+    if(d.goalie || d.id === 'goal' || d.id === 'shot' || !used(d.id)) continue;
+    cols.push([d.short, n => n(d.id)]);
+    if(d.id === 'passm' && used('passc')) cols.push(['PASS%', n => pct(n('passc'), n('passc') + n('passm')), true]);
+  }
+  const line = (n, div) => cols.map(([, f, text]) => { const v = f(n); return text ? v : opt.perGame ? (div ? (v/div).toFixed(1) : '–') : v; });
+  const head = ['#', 'Player', ...(opt.gp ? ['GP'] : []), ...cols.map(x => x[0])];
+  const rows = [];
+  for(const p of sortedPlayers(t)){
+    if(!gp[p.id]) continue;
+    const n = k => (c[p.id] || {})[k] || 0;
+    if(p.pos === 'G' && !cols.some(([, f, text]) => !text && f(n))) continue;
+    rows.push([p.num, p.name, ...(opt.gp ? [gp[p.id]] : []), ...line(n, gp[p.id])]);
+  }
+  if(c[UNKNOWN]) rows.push(['?', 'Unknown', ...(opt.gp ? [''] : []), ...line(k => c[UNKNOWN][k] || 0, games.length)]);
+  const total = ['', 'Team', ...(opt.gp ? [games.length] : []), ...line(k => tot[k] || 0, games.length)];
+  return {head, rows, total};
+}
+function goalieTable(t, games){
+  const {c, gp} = counts(t, games);
+  const rows = [];
+  for(const p of sortedPlayers(t)){
+    const n = c[p.id] || {}, sv = n.save || 0, ga = n.ga || 0;
+    if(!sv && !ga) continue;
+    rows.push([p.num, p.name, gp[p.id] || 0, sv + ga, sv, ga, ((100*sv)/(sv+ga)).toFixed(1) + '%']);
+  }
+  return {head:['#', 'Goalie', 'GP', 'SA', 'SV', 'GA', 'SV%'], rows};
+}
+function periodTable(t, g){
+  const periods = PERIODS.filter(p => ['1','2','3'].includes(p) || g.log.some(e => e.period === p));
+  const rows = t.events.filter(d => d.on || g.log.some(e => e.ev === d.id)).map(d => {
+    const per = periods.map(p => g.log.filter(e => e.ev === d.id && e.period === p).length);
+    return ['', d.label, ...per, per.reduce((a,b) => a+b, 0)];
+  });
+  return {head:['', 'Team by period', ...periods.map(p => p === 'OT' ? 'OT' : 'P'+p), 'Total'], rows};
+}
+const tableHTML = tb => tb.rows.length ? `<div class="tw"><table><tr>${tb.head.map(h => `<th>${esc(h)}</th>`).join('')}</tr>
+  ${tb.rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}
+  ${tb.total ? `<tr class="total">${tb.total.map(v => `<td>${esc(v)}</td>`).join('')}</tr>` : ''}</table></div>` : '<p class="dim">No data yet.</p>';
+const csvLine = r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(',');
+const tableCSV = tb => [tb.head, ...tb.rows, ...(tb.total ? [tb.total] : [])].map(csvLine).join('\n');
+const LEGEND = `<p class="dim sm">G goals · A assists · PTS points · SOG shots on goal (includes goals) · SA shots against · SV saves · GA goals against</p>`;
+
+async function shareFile(name, text, type){
+  const f = new File([text], name, {type});
+  if(navigator.canShare && navigator.canShare({files:[f]})){
+    try{ await navigator.share({files:[f]}); return; }catch(e){ if(e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = name; a.click();
+}
+const fileSafe = s => s.replace(/[^\w\-]+/g, '_');
+
+/* ---------- Game summary ---------- */
+function summary(id){
+  const g = game(id), t = team(), s = score(g);
+  return back('Game summary') + `
+    <div style="text-align:center;margin:6px 0 4px">
+      <div class="dim">${esc(g.date)} · ${g.home?'Home':'Away'}</div>
+      <div style="font-size:19px;font-weight:700;margin-top:4px">${esc(t.name)} ${g.home?'vs':'@'} ${esc(g.opp)}</div>
+      <div class="score" style="font-size:40px">${s.us} – ${s.them}</div></div>
+    <h2>Skaters</h2>${tableHTML(skaterTable(t, [g]))}
+    <h2>Goalies</h2>${tableHTML(goalieTable(t, [g]))}
+    <h2>By period</h2>${tableHTML(periodTable(t, g))}
+    ${LEGEND}
+    <div class="menu noprint" style="margin-top:16px">
+      <button class="primary" onclick="shareGame('${id}')">Share spreadsheet (CSV)</button>
+      <button onclick="window.print()">Print / save PDF</button>
+      <button onclick="reopen('${id}')">Resume tracking</button>
+      <button class="danger" style="grid-column:1/-1" onclick="delGame('${id}')">Delete game</button></div>`;
+}
+function shareGame(id){
+  const g = game(id), t = team(), s = score(g);
+  const csv = [csvLine([t.name, (g.home?'vs ':'@ ') + g.opp, g.date, `Score ${s.us}-${s.them}`]), '',
+    tableCSV(skaterTable(t, [g])), '', tableCSV(goalieTable(t, [g])), '', tableCSV(periodTable(t, g))].join('\n');
+  shareFile(fileSafe(`${g.date}_${t.name}_vs_${g.opp}`) + '.csv', csv, 'text/csv');
+}
+function reopen(id){ game(id).done = false; save(); go('live', id); }
+function delGame(id){ if(!confirm('Delete this game and its stats?')) return; S.games = S.games.filter(g => g.id !== id); save(); go('home'); }
+
+/* ---------- Season ---------- */
+function season(perGame){
+  const t = team(), games = teamGames();
+  let w = 0, l = 0, d = 0; games.forEach(g => { const s = score(g); s.us > s.them ? w++ : s.us < s.them ? l++ : d++; });
+  return back('Season stats') + `
+    <div style="text-align:center"><div style="font-size:19px;font-weight:700">${esc(t.name)}</div>
+      <div class="dim">${games.length} game${games.length===1?'':'s'} · ${w}W ${l}L ${d}T</div></div>
+    <div class="periods noprint" style="margin-top:12px">
+      <button class="${perGame?'':'on'}" onclick="go('season')">Totals</button>
+      <button class="${perGame?'on':''}" onclick="go('season','pg')">Per game</button></div>
+    <h2>Skaters ${perGame?'(per game)':''}</h2>${tableHTML(skaterTable(t, games, {gp:true, perGame:!!perGame}))}
+    <h2>Goalies</h2>${tableHTML(goalieTable(t, games))}
+    ${LEGEND}
+    <div class="menu noprint" style="margin-top:16px">
+      <button class="primary" onclick="shareSeason(${perGame?'true':'false'})">Share spreadsheet (CSV)</button>
+      <button style="grid-column:1/-1" onclick="window.print()">Print / save PDF</button></div>`;
+}
+function shareSeason(perGame){
+  const t = team(), games = teamGames();
+  const csv = [csvLine([t.name, 'Season' + (perGame ? ' (per game)' : ' totals'), games.length + ' games']), '',
+    tableCSV(skaterTable(t, games, {gp:true, perGame})), '', tableCSV(goalieTable(t, games))].join('\n');
+  shareFile(fileSafe(t.name + '_season') + '.csv', csv, 'text/csv');
+}
+
+/* ---------- Backup ---------- */
+function backup(){
+  return back('Backup') + `
+    <p class="dim">Everything is stored only on this phone. Save a backup file now and then (to Files, iCloud or email)
+    so nothing is lost if the phone is replaced or the browser data is cleared.</p>
+    <button class="primary" style="width:100%" onclick="shareFile('rink-stats-backup-${today()}.json', JSON.stringify(S), 'application/json')">Save backup file</button>
+    <h2>Restore</h2>
+    <p class="dim sm">Restoring replaces everything currently in the app with the contents of the backup file.</p>
+    <input type="file" accept=".json,application/json" onchange="restore(this.files[0])">`;
+}
+async function restore(file){
+  if(!file) return;
+  try{
+    const s = JSON.parse(await file.text());
+    if(!Array.isArray(s.teams) || !Array.isArray(s.games)) throw 0;
+    if(S.teams.length && !confirm('Replace all current data with this backup?')) return render();
+    S = s; save(); go('home');
+  }catch(e){ alert('That file is not a Rink Stats backup.'); }
+}
+
+render();
+if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
